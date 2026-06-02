@@ -1,0 +1,10 @@
+fastapi==0.136.1
+uvicorn==0.47.0
+SQLAlchemy==2.0.50
+psycopg2-binary==2.9.12
+PyJWT==2.13.0
+openpyxl==3.1.5
+reportlab==4.5.1
+python-dotenv==1.2.2
+pydantic==2.13.4
+python-multipart==0.0.29
