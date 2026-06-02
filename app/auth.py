@@ -12,7 +12,7 @@ load_dotenv(dotenv_path=current_dir.parent / ".env")
 spring_env = current_dir.parent.parent.parent / "backend-restobar" / ".env"
 load_dotenv(dotenv_path=spring_env)
 
-JWT_SECRET_RAW = os.getenv("JWT_SECRET")
+JWT_SECRET_RAW = os.getenv("JWT_SECRET", "").strip()
 if not JWT_SECRET_RAW:
     JWT_SECRET_RAW = "thatqIsMykeyregtfrdesww233eggtwasoddgkjjhhtdhttebd54ndsiuuhhhshs8877465sbbdd"
 
@@ -23,8 +23,18 @@ try:
         padded_secret = JWT_SECRET_RAW + '=' * (4 - missing_padding)
     else:
         padded_secret = JWT_SECRET_RAW
-    JWT_SECRET = base64.b64decode(padded_secret)
+    
+    # validate=True is crucial! Otherwise Python ignores invalid characters (like _, !, @) 
+    # instead of throwing an exception like Java does.
+    decoded = base64.b64decode(padded_secret, validate=True)
+    
+    # Java checks if the decoded length is >= 32 before using it
+    if len(decoded) >= 32:
+        JWT_SECRET = decoded
+    else:
+        JWT_SECRET = JWT_SECRET_RAW.encode("utf-8")
 except Exception:
+    # If it's not valid Base64, fallback to raw UTF-8 bytes (just like Spring Boot)
     JWT_SECRET = JWT_SECRET_RAW.encode("utf-8")
 
 security = HTTPBearer()
