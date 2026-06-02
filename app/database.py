@@ -27,9 +27,23 @@ if "://" in db_url and "@" not in db_url:
         prefix, rest = db_url.split("://", 1)
         db_url = f"{prefix}://{db_username}:{db_password}@{rest}"
 
+import re
+
 # Normalize postgres:// to postgresql://
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# Normalize Cloud SQL syntax from Spring Boot (cloudSqlInstance) to Python psycopg2 syntax (host=/cloudsql/...)
+if "cloudSqlInstance=" in db_url:
+    match = re.search(r"cloudSqlInstance=([^&]+)", db_url)
+    if match:
+        instance = match.group(1)
+        db_url = re.sub(r"cloudSqlInstance=[^&]+", f"host=/cloudsql/{instance}", db_url)
+    
+    # Remove Java specific socketFactory if present
+    db_url = re.sub(r"&?socketFactory=[^&]+", "", db_url)
+    # Clean up trailing or dangling &
+    db_url = db_url.replace("?&", "?").rstrip("&")
 
 engine = create_engine(
     db_url,
