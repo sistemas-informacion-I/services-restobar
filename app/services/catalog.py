@@ -123,6 +123,13 @@ class ReportCatalog:
         self.register(self.build_comandas())
         self.register(self.build_ventas_por_empleado())
         self.register(self.build_clientes_frecuentes())
+        self.register(self.build_caja())
+        self.register(self.build_reservas())
+        self.register(self.build_mesas())
+        self.register(self.build_proveedores())
+        self.register(self.build_ventas_por_metodo_pago())
+        self.register(self.build_ventas_por_hora())
+        self.register(self.build_reservas_por_estado())
 
     def register(self, t: ReportType):
         self.types[t.key] = t
@@ -436,5 +443,164 @@ class ReportCatalog:
                 ReportField.dimension("ci", "CI / Documento", "u.ci", FieldType.STRING, ["cliente"]),
                 ReportField.measure("visitas", "Cantidad de Compras", "COUNT(nv.id_nota_venta)", FieldType.NUMBER),
                 ReportField.measure("totalGastado", "Total Gastado (Bs)", "SUM(nv.total)", FieldType.NUMBER)
+            ]
+        )
+
+    # ── QBE / Detalle (nuevos) ─────────────────────────────────
+
+    def build_caja(self) -> ReportType:
+        return ReportType(
+            key="caja",
+            label="Cierre de Caja",
+            category=ReportCategory.QBE,
+            required_authority="REPORT_READ",
+            from_clause="caja cj",
+            date_field="cj.fecha_apertura",
+            joins={
+                "sucursal": "LEFT JOIN sucursal s ON s.id_sucursal = cj.id_sucursal",
+                "empleado_apertura": "LEFT JOIN empleado ea ON ea.id_empleado = cj.id_empleado_apertura LEFT JOIN usuario uea ON uea.id_usuario = ea.id_usuario",
+                "empleado_cierre": "LEFT JOIN empleado ec ON ec.id_empleado = cj.id_empleado_cierre LEFT JOIN usuario uec ON uec.id_usuario = ec.id_usuario"
+            },
+            fields=[
+                ReportField.plain("idCaja", "Nro. Caja", "cj.id_caja", FieldType.NUMBER),
+                ReportField.plain("fechaApertura", "Fecha apertura", "cj.fecha_apertura", FieldType.DATE),
+                ReportField.plain("fechaCierre", "Fecha cierre", "cj.fecha_cierre", FieldType.DATE),
+                ReportField.plain("estado", "Estado", "cj.estado", FieldType.STRING),
+                ReportField.plain("montoInicial", "Monto inicial (Bs)", "cj.monto_inicial", FieldType.NUMBER),
+                ReportField.plain("montoFinal", "Monto final (Bs)", "cj.monto_final", FieldType.NUMBER),
+                ReportField.plain("saldoEsperado", "Saldo esperado (Bs)", "cj.saldo_esperado", FieldType.NUMBER),
+                ReportField.plain("diferencia", "Diferencia (Bs)", "cj.diferencia", FieldType.NUMBER),
+                ReportField.plain("sucursalNombre", "Sucursal", "s.nombre", FieldType.STRING, ["sucursal"]),
+                ReportField.plain("empleadoApertura", "Abierto por", "(uea.nombre || ' ' || uea.apellido)", FieldType.STRING, ["empleado_apertura"]),
+                ReportField.plain("empleadoCierre", "Cerrado por", "(uec.nombre || ' ' || uec.apellido)", FieldType.STRING, ["empleado_cierre"]),
+                ReportField.plain("observacionApertura", "Obs. apertura", "cj.observacion_apertura", FieldType.STRING),
+                ReportField.plain("observacionCierre", "Obs. cierre", "cj.observacion_cierre", FieldType.STRING),
+            ]
+        )
+
+    def build_reservas(self) -> ReportType:
+        return ReportType(
+            key="reservas",
+            label="Reservas",
+            category=ReportCategory.QBE,
+            required_authority="REPORT_READ",
+            from_clause="reserva r",
+            date_field="r.fecha_reserva",
+            joins={
+                "sucursal": "LEFT JOIN sucursal s ON s.id_sucursal = r.id_sucursal"
+            },
+            fields=[
+                ReportField.plain("idReserva", "Nro. Reserva", "r.id_reserva", FieldType.NUMBER),
+                ReportField.plain("fechaReserva", "Fecha", "r.fecha_reserva", FieldType.DATE),
+                ReportField.plain("horaInicio", "Hora inicio", "r.hora_inicio", FieldType.STRING),
+                ReportField.plain("horaFin", "Hora fin", "r.hora_fin", FieldType.STRING),
+                ReportField.plain("cantidadPersonas", "Personas", "r.cantidad_personas", FieldType.NUMBER),
+                ReportField.plain("estado", "Estado", "r.estado", FieldType.STRING),
+                ReportField.plain("clienteNombre", "Cliente", "r.cliente_nombre", FieldType.STRING),
+                ReportField.plain("clienteTelefono", "Teléfono", "r.cliente_telefono", FieldType.STRING),
+                ReportField.plain("clienteCorreo", "Correo", "r.cliente_correo", FieldType.STRING),
+                ReportField.plain("sucursalNombre", "Sucursal", "s.nombre", FieldType.STRING, ["sucursal"]),
+                ReportField.plain("observaciones", "Observaciones", "r.observaciones", FieldType.STRING),
+                ReportField.plain("fechaCreacion", "Fecha creación", "r.fecha_creacion", FieldType.DATE),
+                ReportField.plain("motivoCancelacion", "Motivo cancelación", "r.motivo_cancelacion", FieldType.STRING),
+            ]
+        )
+
+    def build_mesas(self) -> ReportType:
+        return ReportType(
+            key="mesas",
+            label="Estado de Mesas",
+            category=ReportCategory.QBE,
+            required_authority="REPORT_READ",
+            from_clause="mesa m",
+            date_field=None,
+            joins={
+                "sector": "LEFT JOIN sector sec ON sec.id_sector = m.id_sector",
+                "sucursal": "LEFT JOIN sucursal s ON s.id_sucursal = sec.id_sucursal"
+            },
+            fields=[
+                ReportField.plain("idMesa", "Nro. Mesa", "m.id_mesa", FieldType.NUMBER),
+                ReportField.plain("numeroMesa", "Código mesa", "m.numero_mesa", FieldType.STRING),
+                ReportField.plain("capacidadPersonas", "Capacidad", "m.capacidad_personas", FieldType.NUMBER),
+                ReportField.plain("disponibilidad", "Estado", "m.disponibilidad", FieldType.STRING),
+                ReportField.plain("sectorNombre", "Sector", "sec.nombre", FieldType.STRING, ["sector"]),
+                ReportField.plain("sucursalNombre", "Sucursal", "s.nombre", FieldType.STRING, ["sucursal"]),
+                ReportField.plain("activo", "Activo", "m.activo", FieldType.BOOLEAN),
+            ]
+        )
+
+    def build_proveedores(self) -> ReportType:
+        return ReportType(
+            key="proveedores",
+            label="Proveedores",
+            category=ReportCategory.QBE,
+            required_authority="REPORT_READ",
+            from_clause="proveedor prov",
+            date_field="prov.created_at",
+            joins={},
+            fields=[
+                ReportField.plain("idProveedor", "Nro. Proveedor", "prov.id_proveedor", FieldType.NUMBER),
+                ReportField.plain("empresa", "Empresa", "prov.empresa", FieldType.STRING),
+                ReportField.plain("nit", "NIT", "prov.nit", FieldType.STRING),
+                ReportField.plain("nombreContacto", "Contacto", "prov.nombre_contacto", FieldType.STRING),
+                ReportField.plain("telefono", "Teléfono", "prov.telefono", FieldType.STRING),
+                ReportField.plain("correo", "Correo", "prov.correo", FieldType.STRING),
+                ReportField.plain("direccion", "Dirección", "prov.direccion", FieldType.STRING),
+                ReportField.plain("categoriaProductos", "Categoría", "prov.categoria_productos", FieldType.STRING),
+                ReportField.plain("activo", "Activo", "prov.activo", FieldType.BOOLEAN),
+                ReportField.plain("createdAt", "Fecha creación", "prov.created_at", FieldType.DATE),
+            ]
+        )
+
+    # ── Analíticos / Gerenciales (nuevos) ──────────────────────
+
+    def build_ventas_por_metodo_pago(self) -> ReportType:
+        return ReportType(
+            key="ventas_por_metodo_pago",
+            label="Ventas por Método de Pago",
+            category=ReportCategory.MANAGERIAL,
+            required_authority="REPORT_READ",
+            from_clause="nota_venta nv",
+            date_field="nv.fecha_emision",
+            joins={
+                "metodo_pago": "LEFT JOIN metodo_pago mp ON mp.id_metodo_pago = nv.id_metodo_pago"
+            },
+            fields=[
+                ReportField.dimension("metodoPago", "Método de pago", "mp.nombre", FieldType.STRING, ["metodo_pago"]),
+                ReportField.measure("totalVentas", "Total ventas (Bs)", "SUM(nv.total)", FieldType.NUMBER),
+                ReportField.measure("cantidadVentas", "Cantidad de ventas", "COUNT(*)", FieldType.NUMBER),
+                ReportField.measure("promedioVenta", "Promedio por venta (Bs)", "ROUND(AVG(nv.total), 2)", FieldType.NUMBER),
+            ]
+        )
+
+    def build_ventas_por_hora(self) -> ReportType:
+        return ReportType(
+            key="ventas_por_hora",
+            label="Ventas por Hora del Día",
+            category=ReportCategory.MANAGERIAL,
+            required_authority="REPORT_READ",
+            from_clause="nota_venta nv",
+            date_field="nv.fecha_emision",
+            joins={},
+            fields=[
+                ReportField.dimension("hora", "Hora", "to_char(nv.fecha_emision, 'HH24') || ':00'", FieldType.STRING),
+                ReportField.measure("totalVentas", "Total ventas (Bs)", "SUM(nv.total)", FieldType.NUMBER),
+                ReportField.measure("cantidadVentas", "Cantidad de ventas", "COUNT(*)", FieldType.NUMBER),
+                ReportField.measure("promedioVenta", "Promedio por venta (Bs)", "ROUND(AVG(nv.total), 2)", FieldType.NUMBER),
+            ]
+        )
+
+    def build_reservas_por_estado(self) -> ReportType:
+        return ReportType(
+            key="reservas_por_estado",
+            label="Reservas por Estado",
+            category=ReportCategory.ANALYTICAL,
+            required_authority="REPORT_READ",
+            from_clause="reserva r",
+            date_field="r.fecha_reserva",
+            joins={},
+            fields=[
+                ReportField.dimension("estado", "Estado", "r.estado", FieldType.STRING),
+                ReportField.measure("totalReservas", "Total reservas", "COUNT(*)", FieldType.NUMBER),
             ]
         )

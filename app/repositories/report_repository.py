@@ -146,6 +146,18 @@ class ReportRepository:
             if f_field:
                 needed_joins.update(f_field.joins)
 
+        # Also resolve joins needed by date_field (e.g. "nv.fecha_emision" needs the "nota_venta" join)
+        if report_type.date_field:
+            date_alias = report_type.date_field.split(".")[0].strip()
+            for j_key, j_sql in report_type.joins.items():
+                parts = j_sql.split()
+                for i, part in enumerate(parts):
+                    if part.upper() in ("JOIN", "INNER", "LEFT", "RIGHT", "CROSS") and i + 2 < len(parts):
+                        alias = parts[i + 2]
+                        if alias == date_alias and j_key not in needed_joins:
+                            needed_joins.add(j_key)
+                            break
+
         join_sql = ""
         for j_key in report_type.joins.keys():
             if j_key in needed_joins:

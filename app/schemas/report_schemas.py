@@ -94,3 +94,15 @@ class ReportResult(BaseModel):
     limit: int
     generatedAt: str
     appliedFilters: List[str]
+
+
+# ── IA: Asistente de reportes ─────────────────────────────────
+
+class PromptReportRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=500)
+
+
+class AIReportResponse(BaseModel):
+    transcript: Optional[str] = None
+    query: ReportRunRequest
+    result: ReportResult
